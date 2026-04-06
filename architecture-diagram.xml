@@ -1,0 +1,179 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.6 Chrome/144.0.7559.236 Electron/40.8.4 Safari/537.36" version="29.6.6">
+  <diagram name="Agentic AI ER Diagram System" id="architecture">
+    <mxGraphModel dx="727" dy="466" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="0VWPPEldFyLQv9ekBTEN-1" parent="1" style="sketch=0;outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;fontSize=12;fontStyle=0;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_aws_cloud;strokeColor=#858B94;fillColor=none;verticalAlign=top;align=left;spacingLeft=30;fontColor=#858B94;dashed=0;" value="AWS Cloud" vertex="1">
+          <mxGeometry height="369" width="830" x="261" y="51" as="geometry" />
+        </mxCell>
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#000000;" value="Agentic AI ER Diagram Generation System (AI-DLC)" vertex="1">
+          <mxGeometry height="30" width="529" x="63" y="19" as="geometry" />
+        </mxCell>
+        <mxCell id="user" parent="1" style="sketch=0;outlineConnect=0;fontColor=#000000;gradientColor=none;fillColor=#232F3D;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.user;" value="Developer" vertex="1">
+          <mxGeometry height="60" width="60" x="80" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="s3" parent="1" style="sketch=0;outlineConnect=0;fontColor=#000000;gradientColor=none;fillColor=#7AA116;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.s3;" value="S3 Bucket&#xa;SQL Files" vertex="1">
+          <mxGeometry height="60" width="60" x="280" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="lambda" parent="1" style="sketch=0;outlineConnect=0;fontColor=#000000;gradientColor=none;fillColor=#FF9900;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.lambda;" value="Trigger Lambda&#xa;S3 Event Handler" vertex="1">
+          <mxGeometry height="60" width="60" x="480" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="cognito" parent="1" style="sketch=0;outlineConnect=0;fontColor=#000000;gradientColor=none;fillColor=#FF4F8B;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.cognito;" value="Cognito&#xa;OAuth2 M2M" vertex="1">
+          <mxGeometry height="60" width="60" x="685" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="agentcore" parent="1" style="sketch=0;outlineConnect=0;fontColor=#000000;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.bedrock;" value="AgentCore Runtime&#xa;Claude 3.5 Sonnet" vertex="1">
+          <mxGeometry height="60" width="60" x="880" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="ecr" parent="1" style="sketch=0;outlineConnect=0;fontColor=#000000;gradientColor=none;fillColor=#FF9900;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.ecr;" value="ECR&#xa;Docker Image" vertex="1">
+          <mxGeometry height="60" width="60" x="1010" y="54" as="geometry" />
+        </mxCell>
+        <mxCell id="memory" parent="1" style="sketch=0;outlineConnect=0;fontColor=#000000;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.bedrock;" value="AgentCore Memory&#xa;Vector Database" vertex="1">
+          <mxGeometry height="60" width="60" x="680" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="s3output" parent="1" style="sketch=0;outlineConnect=0;fontColor=#000000;gradientColor=none;fillColor=#7AA116;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.s3;" value="S3 Bucket&#xa;Mermaid Diagrams" vertex="1">
+          <mxGeometry height="60" width="60" x="890" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="ssm" parent="1" style="sketch=0;outlineConnect=0;fontColor=#000000;gradientColor=none;fillColor=#FF9900;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.systems_manager;" value="SSM&#xa;Parameter Store" vertex="1">
+          <mxGeometry height="60" width="60" x="490" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="strands" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;fontColor=#000000;" value="Strands&#xa;LLM Framework" vertex="1">
+          <mxGeometry height="40" width="80" x="1000" y="161" as="geometry" />
+        </mxCell>
+        <mxCell id="otel" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontColor=#000000;" value="OpenTelemetry&#xa;Observability" vertex="1">
+          <mxGeometry height="40" width="80" x="1000" y="221" as="geometry" />
+        </mxCell>
+        <mxCell id="flow1" edge="1" parent="1" source="user" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#232F3E;fontColor=#000000;labelBackgroundColor=#FFFFFF;" target="s3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow1label" connectable="0" parent="flow1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#000000;" value="&lt;span style=&quot;background-color: rgb(255, 255, 255);&quot;&gt;Upload SQL&lt;/span&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.1" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="flow2" edge="1" parent="1" source="s3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#232F3E;fontColor=#000000;" target="lambda">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow2label" connectable="0" parent="flow2" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#000000;" value="&lt;span style=&quot;background-color: rgb(255, 255, 255);&quot;&gt;S3 Event&lt;/span&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.1" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="flow3" edge="1" parent="1" source="lambda" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#232F3E;fontColor=#000000;" target="cognito">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow3label" connectable="0" parent="flow3" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#000000;" value="&lt;span style=&quot;background-color: rgb(255, 255, 255);&quot;&gt;Get Token&lt;/span&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.1" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="flow4" edge="1" parent="1" source="cognito" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#232F3E;fontColor=#000000;" target="agentcore">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow4label" connectable="0" parent="flow4" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#000000;" value="&lt;span style=&quot;background-color: rgb(255, 255, 255);&quot;&gt;Authenticated API&lt;/span&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.1" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="flow5" edge="1" parent="1" source="agentcore" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#8C4FFF;fontColor=#000000;" target="memory">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="841" y="174" />
+              <mxPoint x="841" y="234" />
+              <mxPoint x="710" y="234" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="flow5label" connectable="0" parent="flow5" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#000000;" value="&lt;span style=&quot;background-color: rgb(255, 255, 255);&quot;&gt;Store Results&lt;/span&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.1" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="flow6" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#7AA116;fontColor=#000000;" target="s3output">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="910" y="290" />
+              <mxPoint x="910" y="290" />
+            </Array>
+            <mxPoint x="910" y="225" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="flow6label" connectable="0" parent="flow6" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#000000;" value="&lt;span style=&quot;background-color: rgb(255, 255, 255);&quot;&gt;Save Mermaid&lt;/span&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.1" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="flow7" edge="1" parent="1" source="agentcore" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#303030;fontColor=#000000;startArrow=classic;startFill=1;endArrow=none;endFill=0;" target="ecr">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="910" y="68" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="flow7label" connectable="0" parent="flow7" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#000000;" value="&lt;span style=&quot;background-color: rgb(255, 255, 255);&quot;&gt;Container&lt;/span&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.1" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="flow8" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#666666;dashed=1;fontColor=#000000;startArrow=classic;startFill=1;endArrow=none;endFill=0;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="509.47" y="260" />
+              <mxPoint x="509.47" y="260" />
+            </Array>
+            <mxPoint x="509.4111764705883" y="200" as="sourcePoint" />
+            <mxPoint x="509.4111764705883" y="310" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="flow8label" connectable="0" parent="flow8" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#000000;" value="&lt;span style=&quot;background-color: rgb(255, 255, 255);&quot;&gt;Config&lt;/span&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.1" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="flow9" edge="1" parent="1" source="agentcore" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#B5739D;fontColor=#000000;startArrow=classic;startFill=1;endArrow=none;endFill=0;" target="strands">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="980" y="150" />
+              <mxPoint x="980" y="181" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="flow10" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#FFD966;fontColor=#000000;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="928" y="170" />
+              <mxPoint x="968" y="170" />
+              <mxPoint x="968" y="240" />
+            </Array>
+            <mxPoint x="928" y="170" as="sourcePoint" />
+            <mxPoint x="999" y="240" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="process1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1;fontColor=#000000;" value="1. SQL Upload" vertex="1">
+          <mxGeometry height="25" width="80" x="80" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="process2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=1;fontColor=#000000;" value="2. Event Trigger" vertex="1">
+          <mxGeometry height="25" width="80" x="470" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="process3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;fontStyle=1;fontColor=#000000;" value="3. AI Analysis" vertex="1">
+          <mxGeometry height="25" width="80" x="820" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="process4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1;fontColor=#000000;" value="4. ER Diagram" vertex="1">
+          <mxGeometry height="25" width="80" x="958" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;fontStyle=1;fontColor=#000000;" value="Legend" vertex="1">
+          <mxGeometry height="20" width="157" x="73" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="legend1" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#000000;" value="• Solid arrows: Data flow" vertex="1">
+          <mxGeometry height="15" width="150" x="72" y="355" as="geometry" />
+        </mxCell>
+        <mxCell id="legend2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#000000;" value="• Dashed arrows: Configuration" vertex="1">
+          <mxGeometry height="15" width="150" x="72" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="legend3" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#000000;" value="• Purple: Bedrock AgentCore" vertex="1">
+          <mxGeometry height="15" width="150" x="72" y="385" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
