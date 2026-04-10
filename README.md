@@ -78,7 +78,7 @@ Builds a Docker image, pushes it to ECR, and deploys it as an AgentCore Runtime.
 - Generates Mermaid ER diagram syntax
 - Saves `.mmd` files to `s3://<bucket>/erdiags/`
 
-After deployment the script sends a test SQL payload. On success you will see:
+After deployment the script sends a test SQL payload. On success you will see the below text:
 
 ```text
 SQL Analysis - Status Code: 200
