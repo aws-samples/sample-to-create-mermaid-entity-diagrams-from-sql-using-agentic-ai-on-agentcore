@@ -433,24 +433,16 @@ async def generate_er_diagram(payload: Dict[str, Any], access_token) -> Dict[str
                 "duration_ms": (time.time() - start_time) * 1000
             }
 
-@app.route("/health")
 def health_check() -> Dict[str, str]:
     """Health check endpoint"""
     return {"status": "healthy", "service": "erdiagram-generation-agent"}
 
-@app.route("/history/{session_id}")
-@requires_access_token(
-    provider_name="cognitoerdiag",
-    into="access_token",
-    scopes=[OAUTH2_SCOPE],
-    auth_flow="M2M"
-)
-def get_diagram_history(session_id: str, access_token) -> Dict[str, Any]:
+def get_diagram_history(session_id: str) -> Dict[str, Any]:
     """Get ER diagram generation history for a session"""
     try:
         if not MEMORY_ID:
             return {"history": [], "message": "Memory not available"}
-        
+
         memories = memory_client.retrieve_memories(
             memory_id=MEMORY_ID,
             namespace="dashboard/data/{actorId}/all",
@@ -458,13 +450,13 @@ def get_diagram_history(session_id: str, access_token) -> Dict[str, Any]:
             actor_id="erdiagram_generator",
             top_k=10
         )
-        
+
         return {
             "session_id": session_id,
             "history": memories,
             "count": len(memories)
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to retrieve history: {e}")
         return {"error": str(e), "history": []}

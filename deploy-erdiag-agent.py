@@ -243,7 +243,7 @@ def get_cognito_bearer_token():
         print(f"❌ Error in token generation: {e}")
         return None
 
-def create_enhanced_agentcore_runtime_role():
+def create_enhanced_agentcore_runtime_role(s3_bucket: str):
     """Create enhanced IAM role for AgentCore Runtime with comprehensive permissions"""
     role_name = f"{PROJECT_NAME}-analysis-agentcore-runtime-role"
     
@@ -401,8 +401,8 @@ def create_enhanced_agentcore_runtime_role():
                     "s3:ListBucket"
                 ],
                 "Resource": [
-                    "arn:aws:s3:::bedrock-bda-us-west-2-logging-9739327b-fe72-4296-805a-12b6c7c6e/*",
-                    "arn:aws:s3:::bedrock-bda-us-west-2-logging-9739327b-fe72-4296-805a-12b6c7c6e"
+                    f"arn:aws:s3:::{s3_bucket}/*",
+                    f"arn:aws:s3:::{s3_bucket}"
                 ]
             }
         ]
@@ -492,7 +492,7 @@ def add_private_ecr_permissions_to_role(role_arn: str, repo_arn: str):
         print(f"❌ Failed to add private ECR permissions: {e}")
         return False
 
-def deploy_agentcore_runtime(image_uri: str):
+def deploy_agentcore_runtime(image_uri: str, s3_bucket: str):
     """Deploy Analysis Agent as AgentCore Runtime with enhanced configuration"""
     try:
         # Get Cognito configuration for OAuth
@@ -515,41 +515,57 @@ def deploy_agentcore_runtime(image_uri: str):
         
         # Create enhanced IAM role
         print("🔧 Creating enhanced IAM role...")
-        role_arn = create_enhanced_agentcore_runtime_role()
+        role_arn = create_enhanced_agentcore_runtime_role(s3_bucket)
         print(f"✅ Role ready: {role_arn}")
         
         # Wait for IAM role to propagate
         print("⏳ Waiting for IAM role to propagate...")
         time.sleep(10)
         
-        # Create AgentCore Runtime with enhanced configuration
-        response = agentcore_client.create_agent_runtime(
-            agentRuntimeName=runtime_name,
-            agentRuntimeArtifact={
+        # Check if runtime already exists
+        existing_runtime_id = get_ssm_parameter(f"/app/{PROJECT_NAME}/agentcore/analysis_runtime_id")
+
+        runtime_config = {
+            'agentRuntimeArtifact': {
                 'containerConfiguration': {
                     'containerUri': image_uri
                 }
             },
-            networkConfiguration={"networkMode": "PUBLIC"},
-            roleArn=role_arn,
-            environmentVariables={
+            'networkConfiguration': {"networkMode": "PUBLIC"},
+            'roleArn': role_arn,
+            'environmentVariables': {
                 'AWS_DEFAULT_REGION': REGION,
                 'PROJECT_NAME': PROJECT_NAME,
                 'CODE_ANALYSIS_MODEL': 'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
-                'S3_BUCKET_NAME': 'bedrock-bda-us-west-2-logging-9739327b-fe72-4296-805a-12b6c7c6e'
+                'S3_BUCKET_NAME': s3_bucket
             },
-            authorizerConfiguration={
+            'authorizerConfiguration': {
                 "customJWTAuthorizer": {
                     "allowedClients": [cognito_config['machine_client_id']],
                     "discoveryUrl": cognito_config['discovery_url'],
                 }
             }
-        )
-        
-        runtime_id = response['agentRuntimeId']
-        runtime_arn = response['agentRuntimeArn']
-        
-        print(f"✅ Created AgentCore Runtime: {runtime_id}")
+        }
+
+        if existing_runtime_id:
+            print(f"🔄 Updating existing AgentCore Runtime: {existing_runtime_id}")
+            response = agentcore_client.update_agent_runtime(
+                agentRuntimeId=existing_runtime_id,
+                **runtime_config
+            )
+            runtime_id = existing_runtime_id
+            runtime_arn = response['agentRuntimeArn']
+            print(f"✅ Updated AgentCore Runtime: {runtime_id}")
+        else:
+            print(f"🆕 Creating new AgentCore Runtime: {runtime_name}")
+            response = agentcore_client.create_agent_runtime(
+                agentRuntimeName=runtime_name,
+                **runtime_config
+            )
+            runtime_id = response['agentRuntimeId']
+            runtime_arn = response['agentRuntimeArn']
+            print(f"✅ Created AgentCore Runtime: {runtime_id}")
+
         print(f"📋 Runtime ARN: {runtime_arn}")
         
         # Wait for runtime to be ready
@@ -736,20 +752,22 @@ def list_available_models():
     
     return models
 
-def main():
+def main(s3_bucket: str, rebuild: bool = False):
     """Main deployment function"""
     print("🚀 Starting Analysis Agent deployment...")
     print(f"📋 Project: {PROJECT_NAME}")
     print(f"📋 Region: {REGION}")
-    
+    print(f"📋 S3 Bucket: {s3_bucket}")
+
     try:
         # Step 1: Get image URI from SSM or build new image
         print("\n📋 Step 1: Getting image URI from SSM...")
-        image_uri = get_ssm_parameter(f"/app/{PROJECT_NAME}/agentcore/analysis_image_uri")
-        
+        image_uri = None if rebuild else get_ssm_parameter(f"/app/{PROJECT_NAME}/agentcore/analysis_image_uri")
+
         if not image_uri:
             # Build and push new Docker image
-            print("⚠️  No image URI in SSM, building and pushing new Docker image...")
+            reason = "forced rebuild requested" if rebuild else "no image URI in SSM"
+            print(f"🔨 Building and pushing new Docker image ({reason})...")
             image_uri = create_private_ecr_and_push()
             
             if not image_uri:
@@ -773,7 +791,7 @@ def main():
         
         # Step 2: Deploy AgentCore Runtime
         print("\n📋 Step 2: Deploying AgentCore Runtime...")
-        runtime_id, runtime_arn, runtime_url = deploy_agentcore_runtime(image_uri)
+        runtime_id, runtime_arn, runtime_url = deploy_agentcore_runtime(image_uri, s3_bucket)
         
         if not runtime_id:
             raise Exception("Failed to deploy AgentCore Runtime")
@@ -840,21 +858,30 @@ def main():
 
 if __name__ == "__main__":
     import sys
-    
-    # Handle model update command
-    if len(sys.argv) == 3 and sys.argv[1] == "--update-model":
-        new_model_id = sys.argv[2]
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Deploy ER Diagram AgentCore Runtime")
+    parser.add_argument("--s3-bucket", required=False, help="S3 bucket name for storing ER diagrams")
+    parser.add_argument("--update-model", required=False, metavar="MODEL_ID", help="Update the LLM model for an existing runtime")
+    parser.add_argument("--rebuild", action="store_true", help="Force rebuild and push of Docker image even if image URI exists in SSM")
+    args = parser.parse_args()
+
+    if args.update_model:
         runtime_id = get_ssm_parameter(f"/app/{PROJECT_NAME}/agentcore/analysis_runtime_id")
-        
+
         if not runtime_id:
-            print("❌ No analysis runtime found. Deploy first with: python3.13 deploy-analysis-agent.py")
+            print("❌ No analysis runtime found. Deploy first with: python3.13 deploy-erdiag-agent.py --s3-bucket <bucket>")
             sys.exit(1)
-        
+
         print(f"🔄 Updating model for analysis runtime: {runtime_id}")
-        if update_runtime_model(runtime_id, new_model_id):
+        if update_runtime_model(runtime_id, args.update_model):
             print("✅ Model update completed!")
         else:
             print("❌ Model update failed!")
             sys.exit(1)
     else:
-        main()
+        if not args.s3_bucket:
+            print("❌ --s3-bucket is required for deployment.")
+            print("   Usage: python3.13 deploy-erdiag-agent.py --s3-bucket your-bucket-name")
+            sys.exit(1)
+        main(args.s3_bucket, rebuild=args.rebuild)

@@ -326,13 +326,14 @@ def create_s3_trigger(function_name, bucket_name, bucket_region):
 
 def main():
     """Main deployment function"""
-    if len(sys.argv) != 3:
-        print("Usage: python3.13 deploy-trigger-lambda.py <bucket_name> <bucket_region>")
-        print("Example: python3.13 deploy-trigger-lambda.py my-code-bucket us-west-2")
-        sys.exit(1)
-    
-    bucket_name = sys.argv[1]
-    bucket_region = sys.argv[2]
+    import argparse
+    parser = argparse.ArgumentParser(description="Deploy S3 Trigger Lambda for ER Diagram generation")
+    parser.add_argument("--s3-bucket", required=True, help="S3 bucket name to watch for .sql file uploads")
+    parser.add_argument("--bucket-region", required=True, help="AWS region of the S3 bucket (e.g. us-west-2)")
+    args = parser.parse_args()
+
+    bucket_name = args.s3_bucket
+    bucket_region = args.bucket_region
     
     print(f"🚀 Deploying S3 Trigger Lambda for {PROJECT_NAME}")
     print(f"📍 Lambda Region: {REGION}")
