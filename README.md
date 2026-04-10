@@ -92,7 +92,7 @@ SQL Analysis - Status Code: 200
 python3.13 deploy-erdiag-agent.py --s3-bucket <your-s3-bucket-name> --rebuild
 ```
 
-**To update the LLM model after deployment:**
+**To update the LLM model after deployment, run the below command:**
 ```bash
 python3.13 deploy-erdiag-agent.py --update-model <model-id>
 ```
