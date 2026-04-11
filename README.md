@@ -55,12 +55,20 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+All deploy and cleanup scripts use `boto3` and inherit credentials from the environment. Prefix every command with `AWS_PROFILE=agent` to use the correct AWS profile:
+
+```bash
+export AWS_PROFILE=agent
+```
+
+Or prefix each command individually as shown in the sections below.
+
 ## Deployment Order
 
 ### 1. Cognito OAuth
 
 ```bash
-python3.13 deploy/deploy-cognito-auth.py
+AWS_PROFILE=agent python3.13 deploy/deploy-cognito-auth.py
 ```
 
 Creates Cognito User Pool with M2M client credentials flow. Stores client ID, secret, and token URLs in SSM Parameter Store under `/app/erdiagfromsql/agentcore/`.
@@ -70,7 +78,7 @@ Wait 10-15 min for DNS propagation before proceeding.
 ### 2. AgentCore Memory
 
 ```bash
-python3.13 deploy/deploy-agentcore-memory.py
+AWS_PROFILE=agent python3.13 deploy/deploy-agentcore-memory.py
 ```
 
 Creates AgentCore Memory with 90-day expiry for storing SQL analysis context. Enables semantic search, summaries, and user preferences. Takes 2-3 minutes to provision.
@@ -78,13 +86,13 @@ Creates AgentCore Memory with 90-day expiry for storing SQL analysis context. En
 ### 3. AgentCore Runtime
 
 ```bash
-python3.13 deploy/deploy-erdiag-agent.py --s3-bucket <your-s3-bucket-name>
+AWS_PROFILE=agent python3.13 deploy/deploy-erdiag-agent.py --s3-bucket <your-s3-bucket-name>
 ```
 
 Example:
 
 ```bash
-python3.13 deploy/deploy-erdiag-agent.py --s3-bucket my-erdiagram-bucket
+AWS_PROFILE=agent python3.13 deploy/deploy-erdiag-agent.py --s3-bucket my-erdiagram-bucket
 ```
 
 Builds a Docker image, pushes it to ECR, and deploys it as an AgentCore Runtime. The agent:
@@ -105,25 +113,25 @@ SQL Analysis - Status Code: 200
 **To redeploy after code changes**, use the `--rebuild` flag to force a fresh Docker image build:
 
 ```bash
-python3.13 deploy/deploy-erdiag-agent.py --s3-bucket <your-s3-bucket-name> --rebuild
+AWS_PROFILE=agent python3.13 deploy/deploy-erdiag-agent.py --s3-bucket <your-s3-bucket-name> --rebuild
 ```
 
 **To update the LLM model after deployment, run the below command:**
 
 ```bash
-python3.13 deploy/deploy-erdiag-agent.py --update-model <model-id>
+AWS_PROFILE=agent python3.13 deploy/deploy-erdiag-agent.py --update-model <model-id>
 ```
 
 ### 4. Trigger Lambda
 
 ```bash
-python3.13 deploy/deploy-trigger-lambda.py --s3-bucket <your-s3-bucket-name> --bucket-region <region>
+AWS_PROFILE=agent python3.13 deploy/deploy-trigger-lambda.py --s3-bucket <your-s3-bucket-name> --bucket-region <region>
 ```
 
 Example:
 
 ```bash
-python3.13 deploy/deploy-trigger-lambda.py --s3-bucket my-erdiagram-bucket --bucket-region us-west-2
+AWS_PROFILE=agent python3.13 deploy/deploy-trigger-lambda.py --s3-bucket my-erdiagram-bucket --bucket-region us-west-2
 ```
 
 Creates a Lambda function that:
@@ -138,13 +146,13 @@ Creates a Lambda function that:
 Upload any `.sql` file to your S3 bucket:
 
 ```bash
-aws s3 cp my-schema.sql s3://<your-bucket>/
+AWS_PROFILE=agent aws s3 cp my-schema.sql s3://<your-bucket>/
 ```
 
 The Lambda triggers automatically. Check for the generated diagram:
 
 ```bash
-aws s3 ls s3://<your-bucket>/erdiags/
+AWS_PROFILE=agent aws s3 ls s3://<your-bucket>/erdiags/
 ```
 
 You should see a `.mmd` file appear within ~30 seconds.
@@ -196,13 +204,13 @@ To tear down every resource created by the deploy scripts:
 
 ```bash
 # Preview what would be deleted (no changes made)
-python3.13 deploy/cleanup.py --s3-bucket <your-bucket-name> --dry-run
+AWS_PROFILE=agent python3.13 deploy/cleanup.py --s3-bucket <your-bucket-name> --dry-run
 
 # Delete all resources (keeps the S3 bucket)
-python3.13 deploy/cleanup.py --s3-bucket <your-bucket-name>
+AWS_PROFILE=agent python3.13 deploy/cleanup.py --s3-bucket <your-bucket-name>
 
 # Delete all resources AND empty/delete the S3 bucket
-python3.13 deploy/cleanup.py --s3-bucket <your-bucket-name> --delete-bucket
+AWS_PROFILE=agent python3.13 deploy/cleanup.py --s3-bucket <your-bucket-name> --delete-bucket
 ```
 
 Resources removed (in order):
@@ -228,6 +236,7 @@ deactivate
 
 ## Notes
 
+- All commands require the `agent` AWS profile. Prefix with `AWS_PROFILE=agent` or run `export AWS_PROFILE=agent` once per session.
 - All deploy scripts default to `us-west-2`. The region is hardcoded at the top of each script.
 - All configuration is stored in SSM Parameter Store under `/app/erdiagfromsql/agentcore/`.
 - The `--rebuild` flag on `deploy/deploy-erdiag-agent.py` is required any time `src/erdiag-agent.py` is changed, to force a fresh Docker image build instead of reusing the cached ECR image.
