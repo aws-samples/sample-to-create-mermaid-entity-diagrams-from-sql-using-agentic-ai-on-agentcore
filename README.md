@@ -202,6 +202,8 @@ cat <filename>.mmd
 
 To tear down every resource created by the deploy scripts:
 
+> **Caution:** Always run with `--dry-run` first to confirm what will be deleted before making any changes. This operation is irreversible.
+
 ```bash
 # Preview what would be deleted (no changes made)
 AWS_PROFILE=agent python3.13 deploy/cleanup.py --s3-bucket <your-bucket-name> --dry-run
