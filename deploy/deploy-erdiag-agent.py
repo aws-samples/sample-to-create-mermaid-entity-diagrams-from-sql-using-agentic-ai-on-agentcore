@@ -537,7 +537,7 @@ def deploy_agentcore_runtime(image_uri: str, s3_bucket: str):
             'environmentVariables': {
                 'AWS_DEFAULT_REGION': REGION,
                 'PROJECT_NAME': PROJECT_NAME,
-                'CODE_ANALYSIS_MODEL': 'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
+                'CODE_ANALYSIS_MODEL': 'us.anthropic.claude-sonnet-4-6',
                 'S3_BUCKET_NAME': s3_bucket
             },
             'authorizerConfiguration': {
@@ -789,7 +789,8 @@ def update_runtime_model(runtime_id: str, new_model_id: str):
 def list_available_models():
     """List available Bedrock models for code analysis"""
     models = {
-        "Sonnet 4.5 (Latest)": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "Sonnet 4.6 (Latest)": "us.anthropic.claude-sonnet-4-6",
+        "Sonnet 4.5": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
         "Sonnet 3.7": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
         "Sonnet 3.5 (Thinking)": "anthropic.claude-3-5-sonnet-20241022-v2:0",
         "Sonnet 3.5 (Standard)": "anthropic.claude-3-5-sonnet-20240620-v1:0", 
@@ -907,7 +908,7 @@ def main(s3_bucket: str, rebuild: bool = False):
         print(f"📋 Runtime ARN: {runtime_arn}")
         print(f"📋 Runtime URL: {runtime_url}")
         print(f"📋 Authentication: Cognito M2M OAuth")
-        print(f"📋 Current Model: {os.environ.get('CODE_ANALYSIS_MODEL', 'us.anthropic.claude-sonnet-4-5-20250929-v1:0')}")
+        print(f"📋 Current Model: {os.environ.get('CODE_ANALYSIS_MODEL', 'us.anthropic.claude-sonnet-4-6')}")
 
         # Show available models
         list_available_models()
