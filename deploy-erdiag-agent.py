@@ -693,18 +693,69 @@ CREATE TABLE order_items (
         )
         
         print(f"SQL Analysis - Status Code: {response.status_code}")
-        
+
         if response.status_code == 200:
             result = response.json()
             print(f"✅ SQL analysis completed successfully!")
             print(f"📋 Action: {result.get('action', 'N/A')}")
             print(f"📋 Status: {result.get('status', 'N/A')}")
             print(f"📋 Tables: {len(result.get('tables', []))}")
+            if result.get('s3_path'):
+                print(f"📋 S3 Path: {result.get('s3_path')}")
+            return result
         else:
             print(f"❌ SQL analysis failed: {response.text}")
-            
+            return None
+
     except Exception as e:
         print(f"❌ Test failed: {e}")
+        return None
+
+
+def download_and_verify_mermaid(s3_path: str, output_dir: str = "."):
+    """Download generated Mermaid diagram from S3 and open in Mermaid Live for verification"""
+    import webbrowser
+
+    print(f"\n🔍 Step: Verifying Mermaid diagram...")
+
+    try:
+        # Parse s3://bucket/key
+        if not s3_path or not s3_path.startswith("s3://"):
+            print(f"⚠️  No valid S3 path to verify: {s3_path}")
+            return False
+
+        path_without_prefix = s3_path[len("s3://"):]
+        bucket, _, key = path_without_prefix.partition("/")
+
+        local_filename = os.path.join(output_dir, os.path.basename(key))
+
+        print(f"📥 Downloading s3://{bucket}/{key} ...")
+        s3_client = boto3.client('s3', region_name=REGION)
+        s3_client.download_file(bucket, key, local_filename)
+        print(f"✅ Saved to: {local_filename}")
+
+        # Read and display the diagram
+        with open(local_filename, 'r') as f:
+            mermaid_content = f.read()
+
+        print(f"\n{'='*60}")
+        print("📊 Generated Mermaid ER Diagram:")
+        print('='*60)
+        print(mermaid_content)
+        print('='*60)
+
+        # Open Mermaid Live in the default browser
+        mermaid_live_url = "https://mermaid.live/edit"
+        print(f"\n🌐 Opening Mermaid Live editor: {mermaid_live_url}")
+        print(f"💡 Copy the diagram content above and paste it into the editor to visualize.")
+        webbrowser.open(mermaid_live_url)
+
+        print(f"✅ Mermaid diagram verification complete!")
+        return True
+
+    except Exception as e:
+        print(f"❌ Mermaid verification failed: {e}")
+        return False
 
 def update_runtime_model(runtime_id: str, new_model_id: str):
     """Update the LLM model for the deployed runtime"""
@@ -808,8 +859,11 @@ def main(s3_bucket: str, rebuild: bool = False):
         }
         
         # Test the runtime first
+        test_result = None
         try:
-            test_analysis_agent(runtime_url, cognito_config)
+            test_result = test_analysis_agent(runtime_url, cognito_config)
+            if test_result is None:
+                raise Exception("test_analysis_agent returned no result")
             print("✅ Runtime testing completed successfully!")
         except Exception as e:
             print(f"❌ Runtime testing failed: {e}")
@@ -836,6 +890,15 @@ def main(s3_bucket: str, rebuild: bool = False):
             "AgentCore Runtime URL for Analysis Agent"
         )
         
+        # Step 5: Download and verify the generated Mermaid diagram
+        print("\n📋 Step 5: Downloading and verifying Mermaid diagram...")
+        if test_result and test_result.get('s3_path'):
+            download_and_verify_mermaid(test_result['s3_path'])
+        else:
+            print("⚠️  No S3 path in test result — skipping Mermaid diagram download.")
+            print("💡 Check S3 manually: "
+                  f"aws s3 ls s3://{s3_bucket}/erdiags/ --profile agent")
+
         # Summary
         print(f"\n✅ Analysis Agent deployment completed successfully!")
         print(f"📋 ECR Image: {image_uri}")
@@ -844,14 +907,20 @@ def main(s3_bucket: str, rebuild: bool = False):
         print(f"📋 Runtime URL: {runtime_url}")
         print(f"📋 Authentication: Cognito M2M OAuth")
         print(f"📋 Current Model: {os.environ.get('CODE_ANALYSIS_MODEL', 'us.anthropic.claude-sonnet-4-5-20250929-v1:0')}")
-        
+
         # Show available models
         list_available_models()
-        
+
         print(f"\n💡 To change the model after deployment:")
         print(f"   python3.13 deploy-analysis-agent.py --update-model <model_id>")
         print(f"   Example: python3.13 deploy-analysis-agent.py --update-model anthropic.claude-3-5-haiku-20241022-v1:0")
-        
+
+        # Deactivate venv
+        print("\n" + "="*60)
+        print("🏁 All steps complete. Deactivating virtual environment...")
+        print("   Run: deactivate")
+        print("="*60)
+
     except Exception as e:
         print(f"❌ Deployment failed: {str(e)}")
         raise

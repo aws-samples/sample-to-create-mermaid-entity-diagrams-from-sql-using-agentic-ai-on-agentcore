@@ -126,6 +126,50 @@ aws s3 ls s3://<your-bucket>/erdiags/
 
 You should see a `.mmd` file appear within ~30 seconds.
 
+## Verifying the Mermaid Diagram
+
+### Automatic verification (during deployment)
+
+`deploy-erdiag-agent.py` runs a test SQL payload after the runtime is ready. If the agent produces a diagram, the script:
+
+1. Downloads the `.mmd` file from `s3://<bucket>/erdiags/` to the current directory.
+2. Prints the full diagram content to the terminal.
+3. Opens [https://mermaid.live/edit](https://mermaid.live/edit) in your default browser.
+
+Copy the printed diagram content and paste it into the Mermaid Live editor to visualize the ER diagram.
+
+### Manual verification
+
+If you want to verify a diagram independently after an end-to-end test:
+
+**Step 1 — Download the file from S3:**
+```bash
+# List generated diagrams
+aws s3 ls s3://<your-bucket>/erdiags/ --profile agent
+
+# Download the latest file (replace filename as shown in the listing)
+aws s3 cp s3://<your-bucket>/erdiags/<filename>.mmd . --profile agent
+```
+
+**Step 2 — View the content:**
+```bash
+cat <filename>.mmd
+```
+
+**Step 3 — Visualize in Mermaid Live:**
+1. Open [https://mermaid.live/edit](https://mermaid.live/edit) in your browser.
+2. Clear the default content in the editor.
+3. Paste the contents of the `.mmd` file.
+4. The ER diagram renders instantly in the preview panel on the right.
+
+## Cleanup
+
+After all steps are complete, deactivate the virtual environment:
+
+```bash
+deactivate
+```
+
 ## Notes
 
 - All deploy scripts default to `us-west-2`. The region is hardcoded at the top of each script.
