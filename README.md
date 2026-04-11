@@ -4,11 +4,11 @@ Generates Mermaid ER diagrams from SQL schema files using AWS Bedrock AgentCore.
 
 ## Architecture
 
-![Architecture Diagram](architecture-diagram.drawio.png)
+![Architecture Diagram](assets/architecture-diagram.drawio.png)
 
 ## Sample Output
 
-![Sample Mermaid ER Diagram](mermaid-erdiagram.png)
+![Sample Mermaid ER Diagram](assets/mermaid-erdiagram.png)
 
 ## What's Working
 1. ✅ Cognito OAuth (deployed)
@@ -16,16 +16,21 @@ Generates Mermaid ER diagrams from SQL schema files using AWS Bedrock AgentCore.
 3. ✅ AgentCore Runtime (deployed and tested)
 4. ✅ Trigger Lambda (deployed - triggers on S3 SQL file uploads)
 
-## Project Files
+## Project Structure
 
-| File | Description |
-|------|-------------|
-| `deploy-cognito-auth.py` | Creates Cognito User Pool, App Client, and OAuth2 credential provider for M2M authentication |
-| `deploy-agentcore-memory.py` | Deploys AgentCore Memory resource with semantic, summary, and user preference strategies |
-| `deploy-erdiag-agent.py` | Deploys the AgentCore Runtime that hosts the ER diagram generation agent |
-| `erdiag-agent.py` | The agent code - uses Claude Sonnet 4.5 to parse SQL and generate Mermaid ER diagrams |
-| `deploy-trigger-lambda.py` | Creates Lambda function and S3 trigger for automatic processing of uploaded SQL files |
-| `trigger-lambda.py` | Lambda handler that reads SQL from S3, authenticates via Cognito, and calls AgentCore runtime |
+```text
+├── deploy/                        # Deployment scripts (run from project root)
+│   ├── deploy-cognito-auth.py     # Creates Cognito User Pool and M2M OAuth credentials
+│   ├── deploy-agentcore-memory.py # Deploys AgentCore Memory resource
+│   ├── deploy-erdiag-agent.py     # Builds container, deploys AgentCore Runtime
+│   └── deploy-trigger-lambda.py   # Creates Lambda function and S3 trigger
+├── src/                           # Runtime source code
+│   ├── erdiag-agent.py            # Agent: parses SQL and generates Mermaid ER diagrams
+│   └── trigger-lambda.py          # Lambda handler: reads SQL from S3, calls AgentCore
+├── assets/                        # Architecture diagrams and sample output images
+├── samples/                       # Sample Mermaid output files
+└── requirements.txt               # Python dependencies for local dev and deployment
+```
 
 ## Prerequisites
 
@@ -52,7 +57,7 @@ pip install -r requirements.txt
 
 ### 1. Cognito OAuth
 ```bash
-python3.13 deploy-cognito-auth.py
+python3.13 deploy/deploy-cognito-auth.py
 ```
 Creates Cognito User Pool with M2M client credentials flow. Stores client ID, secret, and token URLs in SSM Parameter Store under `/app/erdiagfromsql/agentcore/`.
 
@@ -60,17 +65,17 @@ Wait 10-15 min for DNS propagation before proceeding.
 
 ### 2. AgentCore Memory
 ```bash
-python3.13 deploy-agentcore-memory.py
+python3.13 deploy/deploy-agentcore-memory.py
 ```
 Creates AgentCore Memory with 90-day expiry for storing SQL analysis context. Enables semantic search, summaries, and user preferences. Takes 2-3 minutes to provision.
 
 ### 3. AgentCore Runtime
 ```bash
-python3.13 deploy-erdiag-agent.py --s3-bucket <your-s3-bucket-name>
+python3.13 deploy/deploy-erdiag-agent.py --s3-bucket <your-s3-bucket-name>
 ```
 Example:
 ```bash
-python3.13 deploy-erdiag-agent.py --s3-bucket my-erdiagram-bucket
+python3.13 deploy/deploy-erdiag-agent.py --s3-bucket my-erdiagram-bucket
 ```
 
 Builds a Docker image, pushes it to ECR, and deploys it as an AgentCore Runtime. The agent:
@@ -89,21 +94,21 @@ SQL Analysis - Status Code: 200
 
 **To redeploy after code changes**, use the `--rebuild` flag to force a fresh Docker image build:
 ```bash
-python3.13 deploy-erdiag-agent.py --s3-bucket <your-s3-bucket-name> --rebuild
+python3.13 deploy/deploy-erdiag-agent.py --s3-bucket <your-s3-bucket-name> --rebuild
 ```
 
 **To update the LLM model after deployment, run the below command:**
 ```bash
-python3.13 deploy-erdiag-agent.py --update-model <model-id>
+python3.13 deploy/deploy-erdiag-agent.py --update-model <model-id>
 ```
 
 ### 4. Trigger Lambda
 ```bash
-python3.13 deploy-trigger-lambda.py --s3-bucket <your-s3-bucket-name> --bucket-region <region>
+python3.13 deploy/deploy-trigger-lambda.py --s3-bucket <your-s3-bucket-name> --bucket-region <region>
 ```
 Example:
 ```bash
-python3.13 deploy-trigger-lambda.py --s3-bucket my-erdiagram-bucket --bucket-region us-west-2
+python3.13 deploy/deploy-trigger-lambda.py --s3-bucket my-erdiagram-bucket --bucket-region us-west-2
 ```
 
 Creates a Lambda function that:
@@ -130,7 +135,7 @@ You should see a `.mmd` file appear within ~30 seconds.
 
 ### Automatic verification (during deployment)
 
-`deploy-erdiag-agent.py` runs a test SQL payload after the runtime is ready. If the agent produces a diagram, the script:
+`deploy/deploy-erdiag-agent.py` runs a test SQL payload after the runtime is ready. If the agent produces a diagram, the script:
 
 1. Downloads the `.mmd` file from `s3://<bucket>/erdiags/` to the current directory.
 2. Prints the full diagram content to the terminal.

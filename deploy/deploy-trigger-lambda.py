@@ -34,7 +34,7 @@ def create_lambda_zip():
         with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp_file:
             with zipfile.ZipFile(tmp_file.name, 'w', zipfile.ZIP_DEFLATED) as zip_file:
                 # Add the Lambda function code
-                lambda_code_path = Path(__file__).parent / 'trigger-lambda.py'
+                lambda_code_path = Path(__file__).parent.parent / 'src' / 'trigger-lambda.py'
                 if lambda_code_path.exists():
                     zip_file.write(lambda_code_path, 'lambda_function.py')
                     print(f"✅ Added {lambda_code_path} as lambda_function.py")

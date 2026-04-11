@@ -6,6 +6,7 @@ import os
 import json
 import time
 import base64
+from pathlib import Path
 from botocore.exceptions import ClientError
 
 # Configuration
@@ -131,7 +132,7 @@ def create_private_ecr_and_push():
                 f.write(create_requirements_txt())
             
             # Copy analysis agent
-            agent_source = 'erdiag-agent.py'
+            agent_source = str(Path(__file__).parent.parent / 'src' / 'erdiag-agent.py')
             agent_dest = os.path.join(temp_dir, 'erdiag-agent.py')
             
             if not os.path.exists(agent_source):
