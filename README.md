@@ -77,7 +77,7 @@ Replace `your-profile-name` with your actual AWS profile. Alternatively, prefix 
 AWS_PROFILE=<your-profile-name> python3.13 deploy/deploy-cognito-auth.py
 ```
 
-Creates Cognito User Pool with M2M client credentials flow. Stores client ID, secret, and token URLs in SSM Parameter Store under `/app/erdiagfromsql/agentcore/`.
+Creates Cognito User Pool with M2M client credentials flow. It stores client ID, secret, and token URLs in SSM Parameter Store under `/app/erdiagfromsql/agentcore/`.
 
 **DNS Propagation Check:**
 The script automatically tests OAuth token retrieval at the end. If the test passes (✅ OAuth token obtained successfully), DNS propagation is complete. If it fails, wait 5-10 minutes and verify manually with below commands:
