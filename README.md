@@ -278,3 +278,4 @@ deactivate
 - All configuration is stored in SSM Parameter Store under `/app/erdiagfromsql/agentcore/`.
 - The `--rebuild` flag on `deploy/deploy-erdiag-agent.py` is required any time `src/erdiag-agent.py` is changed, to force a fresh Docker image build instead of reusing the cached ECR image.
 - In real-world scenarios, SQL files are typically checked into a code repository (GitLab or GitHub) and uploaded to S3 automatically via a GitLab pipeline job or GitHub Actions workflow — rather than developers manually uploading files as shown in this architecture. This CI/CD integration step is out of scope for this aws-samples project and will depend on the code repository tooling used in your organization.
+- The authors or AWS is not recommending mermaid and similar tooling can be used to create the entity relationship diagrms.
