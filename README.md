@@ -52,41 +52,76 @@ python3.13 -m venv .venv
 source .venv/bin/activate
 
 # Install dependencies
-pip install -r requirements.txt
+pip3.13 install -r requirements.txt
 ```
 
-All deploy and cleanup scripts use `boto3` and inherit credentials from the environment. Prefix every command with `AWS_PROFILE=agent` to use the correct AWS profile:
+All deploy and cleanup scripts use `boto3` and inherit credentials from the environment. Export your active AWS profile as an environment variable before running the scripts:
+
+```bash
+export AWS_PROFILE=<your-profile-name>
+```
+
+Example:
 
 ```bash
 export AWS_PROFILE=agent
 ```
 
-Or prefix each command individually as shown in the sections below.
+Replace `your-profile-name` with your actual AWS profile. Alternatively, prefix each command individually as shown in the sections below.
 
 ## Deployment Order
 
 ### 1. Cognito OAuth
 
 ```bash
-AWS_PROFILE=agent python3.13 deploy/deploy-cognito-auth.py
+AWS_PROFILE=<your-profile-name> python3.13 deploy/deploy-cognito-auth.py
 ```
 
 Creates Cognito User Pool with M2M client credentials flow. Stores client ID, secret, and token URLs in SSM Parameter Store under `/app/erdiagfromsql/agentcore/`.
 
-Wait 10-15 min for DNS propagation before proceeding.
+**DNS Propagation Check:**
+The script automatically tests OAuth token retrieval at the end. If the test passes (✅ OAuth token obtained successfully), DNS propagation is complete. If it fails, wait 5-10 minutes and verify manually with below commands:
+
+```bash
+# Get the token URL from SSM
+TOKEN_URL=$(aws ssm get-parameter --name /app/erdiagfromsql/agentcore/cognito_token_url --query 'Parameter.Value' --output text --region us-west-2)
+
+# Test DNS resolution
+nslookup $(echo $TOKEN_URL | sed 's|https://||' | cut -d'/' -f1)
+
+# Or test the endpoint directly (should return 400 without credentials, not DNS error)
+curl -I $TOKEN_URL
+```
 
 ### 2. AgentCore Memory
 
 ```bash
-AWS_PROFILE=agent python3.13 deploy/deploy-agentcore-memory.py
+AWS_PROFILE=<your-profile-name> python3.13 deploy/deploy-agentcore-memory.py
 ```
 
 Creates AgentCore Memory with 90-day expiry for storing SQL analysis context. Enables semantic search, summaries, and user preferences. Takes 2-3 minutes to provision.
 
-### 3. AgentCore Runtime
+### 3. S3 Bucket
+```bash
+aws s3api create-bucket \
+  --bucket <your-s3-bucket-name> \
+  --region us-west-2 \
+  --create-bucket-configuration LocationConstraint=us-west-2
+```
+
+Example:
 
 ```bash
-AWS_PROFILE=agent python3.13 deploy/deploy-erdiag-agent.py --s3-bucket <your-s3-bucket-name>
+aws s3api create-bucket \
+  --bucket my-erdiagram-bucket \
+  --region us-west-2 \
+  --create-bucket-configuration LocationConstraint=us-west-2
+```
+
+### 4. AgentCore Runtime
+
+```bash
+AWS_PROFILE=<your-profile-name> python3.13 deploy/deploy-erdiag-agent.py --s3-bucket <your-s3-bucket-name>
 ```
 
 Example:
@@ -113,19 +148,19 @@ SQL Analysis - Status Code: 200
 **To redeploy after code changes**, use the `--rebuild` flag to force a fresh Docker image build:
 
 ```bash
-AWS_PROFILE=agent python3.13 deploy/deploy-erdiag-agent.py --s3-bucket <your-s3-bucket-name> --rebuild
+AWS_PROFILE=<your-profile-name> python3.13 deploy/deploy-erdiag-agent.py --s3-bucket <your-s3-bucket-name> --rebuild
 ```
 
 **To update the LLM model after deployment, run the below command:**
 
 ```bash
-AWS_PROFILE=agent python3.13 deploy/deploy-erdiag-agent.py --update-model <model-id>
+AWS_PROFILE=<your-profile-name> python3.13 deploy/deploy-erdiag-agent.py --update-model <model-id>
 ```
 
-### 4. Trigger Lambda
+### 5. Deploy Trigger Lambda
 
 ```bash
-AWS_PROFILE=agent python3.13 deploy/deploy-trigger-lambda.py --s3-bucket <your-s3-bucket-name> --bucket-region <region>
+AWS_PROFILE=<your-profile-name> python3.13 deploy/deploy-trigger-lambda.py --s3-bucket <your-s3-bucket-name> --bucket-region <region>
 ```
 
 Example:
@@ -146,13 +181,13 @@ Creates a Lambda function that:
 Upload any `.sql` file to your S3 bucket:
 
 ```bash
-AWS_PROFILE=agent aws s3 cp my-schema.sql s3://<your-bucket>/
+AWS_PROFILE=<your-profile-name> aws s3 cp my-schema.sql s3://<your-bucket>/
 ```
 
 The Lambda triggers automatically. Check for the generated diagram:
 
 ```bash
-AWS_PROFILE=agent aws s3 ls s3://<your-bucket>/erdiags/
+AWS_PROFILE=<your-profile-name> aws s3 ls s3://<your-bucket>/erdiags/
 ```
 
 You should see a `.mmd` file appear within ~30 seconds.
@@ -206,13 +241,13 @@ To tear down every resource created by the deploy scripts:
 
 ```bash
 # Preview what would be deleted (no changes made)
-AWS_PROFILE=agent python3.13 deploy/cleanup.py --s3-bucket <your-bucket-name> --dry-run
+AWS_PROFILE=<your-profile-name> python3.13 deploy/cleanup.py --s3-bucket <your-bucket-name> --dry-run
 
 # Delete all resources (keeps the S3 bucket)
-AWS_PROFILE=agent python3.13 deploy/cleanup.py --s3-bucket <your-bucket-name>
+AWS_PROFILE=<your-profile-name> python3.13 deploy/cleanup.py --s3-bucket <your-bucket-name>
 
 # Delete all resources AND empty/delete the S3 bucket
-AWS_PROFILE=agent python3.13 deploy/cleanup.py --s3-bucket <your-bucket-name> --delete-bucket
+AWS_PROFILE=<your-profile-name> python3.13 deploy/cleanup.py --s3-bucket <your-bucket-name> --delete-bucket
 ```
 
 Resources removed (in order):
