@@ -130,7 +130,7 @@ Example:
 AWS_PROFILE=agent python3.13 deploy/deploy-erdiag-agent.py --s3-bucket my-erdiagram-bucket
 ```
 
-Builds a Docker image, pushes it to ECR, and deploys it as an AgentCore Runtime. The agent:
+Containerizes the agent, pushes the Docker image to ECR, and deploys it to AgentCore Runtime. The agent:
 
 - Parses SQL DDL statements (CREATE TABLE, constraints, foreign keys)
 - Generates Mermaid ER diagram syntax
