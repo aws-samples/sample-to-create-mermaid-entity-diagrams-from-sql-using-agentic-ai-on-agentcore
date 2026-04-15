@@ -212,10 +212,10 @@ If you want to verify a diagram independently after an end-to-end test:
 
 ```bash
 # List generated diagrams
-aws s3 ls s3://<your-bucket>/erdiags/ --profile agent
+aws s3 ls s3://<your-bucket>/erdiags/
 
 # Download the latest file (replace filename as shown in the listing)
-aws s3 cp s3://<your-bucket>/erdiags/<filename>.mmd . --profile agent
+aws s3 cp s3://<your-bucket>/erdiags/<filename>.mmd .
 ```
 
 **Step 2 — View the content:**
@@ -273,7 +273,7 @@ deactivate
 
 ## Notes
 
-- All commands require the `agent` AWS profile. Prefix with `AWS_PROFILE=agent` or run `export AWS_PROFILE=agent` once per session.
+- All commands require the `agent` AWS profile. Prefix with `AWS_PROFILE=<your-profile-name>` or run `export AWS_PROFILE=<your-profile-name>` once per session.
 - All deploy scripts default to `us-west-2`. The region is hardcoded at the top of each script.
 - All configuration is stored in SSM Parameter Store under `/app/erdiagfromsql/agentcore/`.
 - The `--rebuild` flag on `deploy/deploy-erdiag-agent.py` is required any time `src/erdiag-agent.py` is changed, to force a fresh Docker image build instead of reusing the cached ECR image.
