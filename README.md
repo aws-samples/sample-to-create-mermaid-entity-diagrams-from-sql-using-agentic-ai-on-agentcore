@@ -102,6 +102,7 @@ AWS_PROFILE=<your-profile-name> python3.13 deploy/deploy-agentcore-memory.py
 Creates AgentCore Memory with 90-day expiry for storing SQL analysis context. Enables semantic search, summaries, and user preferences. Takes 2-3 minutes to provision.
 
 ### 3. S3 Bucket
+
 ```bash
 aws s3api create-bucket \
   --bucket <your-s3-bucket-name> \
@@ -182,6 +183,12 @@ Upload any `.sql` file to your S3 bucket:
 
 ```bash
 AWS_PROFILE=<your-profile-name> aws s3 cp my-schema.sql s3://<your-bucket>/
+```
+
+For Example:
+
+```bash
+AWS_PROFILE=agent aws s3 cp samples/test.sql s3://my-erdiagram-bucket/
 ```
 
 The Lambda triggers automatically. Check for the generated diagram:
