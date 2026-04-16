@@ -8,7 +8,6 @@ import asyncio
 from typing import Dict, List, Any, Optional
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from bedrock_agentcore.memory import MemoryClient
-from bedrock_agentcore.identity.auth import requires_access_token
 from strands import Agent
 from strands.models import BedrockModel
 from opentelemetry import baggage, context, trace
@@ -37,18 +36,6 @@ def get_ssm_parameter(parameter_name: str) -> Optional[str]:
     except Exception as e:
         logger.warning(f"Failed to retrieve SSM parameter {parameter_name}: {e}")
         return None
-
-# Get OAuth2 scope from SSM
-try:
-    OAUTH2_SCOPE = get_ssm_parameter(f"/app/{PROJECT_NAME}/agentcore/cognito_auth_scope")
-    if not OAUTH2_SCOPE:
-        OAUTH2_SCOPE = "erdiagram/read"
-        logger.warning("Using fallback OAuth2 scope: erdiagram/read")
-    else:
-        logger.info(f"Using OAuth2 scope from SSM: {OAUTH2_SCOPE}")
-except Exception as e:
-    OAUTH2_SCOPE = "erdiagram/read"
-    logger.error(f"Error getting OAuth2 scope from SSM: {e}")
 
 # Get memory configuration
 MEMORY_ID = get_ssm_parameter(f"/app/{PROJECT_NAME}/agentcore/memory_id")
@@ -124,6 +111,15 @@ def chunk_sql_content(sql_content: str, max_chunk_size: int = 80000) -> List[str
         chunks.append(current_chunk.rstrip())
     
     return chunks
+
+def sanitize_mermaid_diagram(diagram: str) -> str:
+    """
+    Replace commas inside parentheses in type names so Mermaid can parse them.
+    Parentheses are kept — only commas inside them are replaced with underscores.
+    e.g. DECIMAL(10,2) -> DECIMAL(10_2)   VARCHAR(100) is unchanged.
+    """
+    import re
+    return re.sub(r'\(([^)]+)\)', lambda m: '(' + m.group(1).replace(',', '_') + ')', diagram)
 
 async def generate_er_diagram_from_sql(sql_content: str, file_name: str) -> Dict[str, Any]:
     """Generate Mermaid ER diagram from SQL using Claude Sonnet 4.5 with OpenTelemetry tracing"""
@@ -255,7 +251,7 @@ Provide a unified response with:
         mermaid_diagram = ""
         if "```mermaid" in response_text:
             mermaid_section = response_text.split("```mermaid")[1].split("```")[0].strip()
-            mermaid_diagram = mermaid_section
+            mermaid_diagram = sanitize_mermaid_diagram(mermaid_section)
         
         # Extract tables
         tables = []
@@ -339,13 +335,7 @@ def store_diagram_in_memory(session_id: str, actor_id: str, diagram_result: Dict
         logger.error(f"Failed to store diagram in memory: {e}")
 
 @app.entrypoint
-@requires_access_token(
-    provider_name="cognitoerdiag",
-    into="access_token",
-    scopes=[OAUTH2_SCOPE],
-    auth_flow="M2M"
-)
-async def generate_er_diagram(payload: Dict[str, Any], access_token) -> Dict[str, Any]:
+async def generate_er_diagram(payload: Dict[str, Any]) -> Dict[str, Any]:
     """
     Main entrypoint for SQL ER diagram generation requests
     Protected by Cognito M2M OAuth with OpenTelemetry tracing
@@ -445,7 +435,7 @@ def get_diagram_history(session_id: str) -> Dict[str, Any]:
 
         memories = memory_client.retrieve_memories(
             memory_id=MEMORY_ID,
-            namespace="dashboard/data/{actorId}/all",
+            namespace="erdiagram/data/{actorId}/all",
             query="ER diagram generation",
             actor_id="erdiagram_generator",
             top_k=10

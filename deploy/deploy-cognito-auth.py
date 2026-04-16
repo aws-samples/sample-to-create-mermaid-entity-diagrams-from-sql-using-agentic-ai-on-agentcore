@@ -12,6 +12,7 @@ from botocore.exceptions import ClientError
 # Configuration
 REGION = "us-west-2"
 PROJECT_NAME = "erdiagfromsql"
+OAUTH2_PROVIDER_NAME = "cognitoerdiag"
 
 def get_account_id():
     """Get current AWS account ID"""
@@ -197,7 +198,7 @@ def create_agentcore_oauth2_credential_provider():
             providers = agentcore_client.list_oauth2_credential_providers()
             existing_providers = [p['name'] for p in providers.get('oauth2CredentialProviders', [])]
             
-            if "cognitoerdiag" in existing_providers:
+            if OAUTH2_PROVIDER_NAME in existing_providers:
                 print("✅ OAuth2 credential provider already exists")
                 return True
         except Exception as e:
@@ -205,7 +206,7 @@ def create_agentcore_oauth2_credential_provider():
         
         # Create OAuth2 credential provider
         agentcore_client.create_oauth2_credential_provider(
-            name="cognitoerdiag",
+            name=OAUTH2_PROVIDER_NAME,
             credentialProviderVendor="CustomOauth2",
             oauth2ProviderConfigInput={
                 'customOauth2ProviderConfig': {
