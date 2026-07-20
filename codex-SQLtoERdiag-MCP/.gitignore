@@ -1,0 +1,25 @@
+# Local credentials and environment files
+.env
+.env.*
+!.env.example
+*.local.env
+*.secret
+*.secrets
+*.secret.json
+*.credentials.json
+secrets/
+.secrets/
+mcp/mysql-er-diagram/mcp-config.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+*.egg-info/
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
