@@ -1,114 +1,265 @@
 # Codex MySQL Schema Visibility and ER Diagram Toolkit
 
-This project exists to make life easier for backend software engineers and
-database developers using the Codex app. Its main goal is to give developers a
-simple, repeatable way to connect Codex to a dev/test MySQL or Aurora MySQL
-database, stay current on schema changes, and clearly understand table
-structure and relationships through local ER diagrams.
+Generate current Mermaid ER diagrams from an authorized dev/test MySQL or
+Aurora MySQL database without querying table row data.
 
-Instead of manually inspecting tables, foreign keys, and database structure,
-developers can use a local-only MCP server that reads schema metadata from
-`INFORMATION_SCHEMA` and generates Mermaid or Markdown artifacts that Codex and
-humans can both work with comfortably.
+The project provides a local stdio MCP server for Codex. It runs fixed queries
+against `INFORMATION_SCHEMA`, summarizes the schema, and writes Mermaid or
+Markdown files that developers can inspect and commit alongside their code.
 
-## Start Here
+> [!IMPORTANT]
+> Use this project only with an authorized dev/test database and a dedicated
+> read-only credential. The optional CloudFormation stack is intended for demos
+> and testing, not production.
 
-If you already have a dev/test MySQL or Aurora MySQL database, you can skip the
-CloudFormation setup and go straight to [Codex App MCP Configuration](#codex-app-mcp-configuration).
+## What It Does
 
-The CloudFormation stack in this repo is mainly for testing, demo setup, or for
-cases where you want a disposable Aurora environment to validate the MCP and ER
-diagram flow end to end.
+The MCP server exposes three tools:
 
-Important:
+| Tool | Result |
+| --- | --- |
+| `schema_summary` | Returns table, column, index, and foreign-key counts |
+| `generate_er_markdown` | Writes a Markdown file containing a Mermaid diagram |
+| `generate_mermaid` | Writes a standalone Mermaid `.mmd` file |
 
-- if you already have a dev/test database, you usually do not need the CloudFormation stack
-- if you do use the CloudFormation stack, you must explicitly provide your own
-  desktop public `/24` egress CIDR at deploy time
-- the local MCP server requires `MYSQL_ER_SSL_CA` and refuses unverified TLS
-  connections
+See the checked-in example outputs:
 
-## Why This Project Exists
-
-Backend and database developers often need a fast answer to questions like:
-
-- what tables exist in this database right now
-- how are they related
-- what foreign keys connect one part of the schema to another
-- what changed since the last time I looked
-
-This project is designed to reduce that friction. The CloudFormation stack
-creates a safe dev/test environment and a tightly scoped read-only database
-user. The local MCP server gives Codex a reliable way to inspect schema
-metadata and generate fresh ER diagrams without exposing row data or requiring
-broad database permissions.
-
-## What This Repo Contains
-
-- `cloudformation/aurora-mysql-test-db.yaml`: Aurora MySQL stack with a
-  Lambda-backed custom resource that bootstraps a read-only user and test tables.
-- `cloudformation/deploy-aurora-mysql-test-db.sh`: helper script to deploy or
-  delete the stack using the `mcp` AWS profile.
-- `mcp/mysql-er-diagram`: local MCP server package that reads
-  `INFORMATION_SCHEMA` and writes Mermaid or Markdown ER diagrams.
-- `er-diagrams/`: generated local diagram output.
-- `lambda-layers/pymysql`: dependency source for the PyMySQL Lambda layer used
-  by the CloudFormation custom resource.
+- [`er-diagrams/schema-er.md`](er-diagrams/schema-er.md)
+- [`er-diagrams/schema-er.mmd`](er-diagrams/schema-er.mmd)
 
 ## Architecture
+
+```mermaid
+flowchart LR
+    Codex["Codex app"] -->|"local stdio"| MCP["MySQL ER diagram MCP"]
+    MCP -->|"get credential"| Secrets["AWS Secrets Manager"]
+    MCP -->|"fixed metadata queries"| Schema["MySQL INFORMATION_SCHEMA"]
+    MCP -->|"write"| Files["Local Mermaid / Markdown files"]
+    Stack["Optional CloudFormation stack"] --> Secrets
+    Stack --> Aurora["Aurora MySQL test database"]
+    Aurora --> Schema
+```
+
+The optional stack creates Aurora MySQL, generated credentials, a read-only
+user, and three related sample tables. You do not need the stack when you
+already have an authorized dev/test database.
+
+## Prerequisites
+
+For the local MCP server:
+
+- Codex desktop app
+- Python 3.11 or newer
+- [`uv`](https://docs.astral.sh/uv/) so `uvx` is available
+- network access to the MySQL or Aurora endpoint
+- an authorized read-only database credential
+- an AWS RDS CA bundle for TLS verification
+- AWS credentials with `secretsmanager:GetSecretValue` when using Secrets Manager
+
+For the optional Aurora test stack:
+
+- AWS CLI configured with a profile
+- permission to create CloudFormation, IAM, VPC endpoint, RDS, Lambda,
+  Secrets Manager, and CloudWatch resources
+- a default VPC with public subnets in at least two Availability Zones
+- `curl`, `zip`, Python, and `pip`
+
+The test stack creates billable AWS resources. Its database is publicly
+accessible but restricted by a security group to the bootstrap Lambda and a
+detected desktop `/24` egress range.
+
+## Quick Start With an Existing Database
+
+This is the recommended path when your team already has a dev/test MySQL or
+Aurora database.
+
+### 1. Install `uv`
+
+macOS or Linux:
+
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+### 2. Configure the Codex MCP server
+
+Add the following entry to `~/.codex/config.toml`. Replace every placeholder
+with a real value:
+
+```toml
+[mcp_servers.mysql-er-diagram]
+command = "uvx"
+args = [
+    "--from",
+    "<PROJECT_ROOT>/mcp/mysql-er-diagram",
+    "mysql-er-diagram-mcp",
+]
+
+[mcp_servers.mysql-er-diagram.env]
+AWS_PROFILE = "your-dev-profile"
+AWS_REGION = "us-west-2"
+MYSQL_ER_HOST = "your-aurora-endpoint"
+MYSQL_ER_PORT = "3306"
+MYSQL_ER_DATABASE = "workshop"
+MYSQL_ER_READONLY_USERNAME = "readonly_user"
+MYSQL_ER_SECRET_ARN = "arn:aws:secretsmanager:us-west-2:123456789012:secret:readonly-secret"
+MYSQL_ER_SSL_CA = "<PROJECT_ROOT>/mcp/mysql-er-diagram/global-bundle.pem"
+```
+
+`MYSQL_ER_SSL_CA` is required and has no implicit default. The example selects
+the bundled AWS RDS global CA file explicitly.
+
+Restart Codex or reload its MCP configuration after editing the file.
+
+### 3. Verify the connection
+
+Ask Codex:
+
+```text
+Use the mysql-er-diagram schema_summary tool for the workshop database.
+```
+
+Confirm that the returned database name and table count match the intended
+dev/test database before generating files.
+
+### 4. Generate the diagram
+
+Use an absolute output path so the result does not depend on the MCP process's
+working directory:
+
+```text
+Use mysql-er-diagram generate_er_markdown for workshop and write it to
+<PROJECT_ROOT>/er-diagrams/schema-er.md.
+```
+
+Review the output for missing foreign keys or unexpected tables.
+
+## Command-Line Usage
+
+The package can also generate diagrams without starting an MCP session:
+
+```sh
+export MYSQL_ER_MCP_DIR="$(pwd)/mcp/mysql-er-diagram"
+export AWS_PROFILE="your-dev-profile"
+export AWS_REGION="us-west-2"
+export MYSQL_ER_HOST="your-aurora-endpoint"
+export MYSQL_ER_PORT="3306"
+export MYSQL_ER_DATABASE="workshop"
+export MYSQL_ER_READONLY_USERNAME="readonly_user"
+export MYSQL_ER_SECRET_ARN="your-readonly-secret-arn"
+export MYSQL_ER_SSL_CA="$(pwd)/mcp/mysql-er-diagram/global-bundle.pem"
+
+MYSQL_ER_CLI=1 uvx --from "$MYSQL_ER_MCP_DIR" mysql-er-diagram-mcp \
+  --output "$(pwd)/er-diagrams/schema-er.md"
+```
+
+Generate Mermaid only:
+
+```sh
+MYSQL_ER_CLI=1 uvx --from "$MYSQL_ER_MCP_DIR" mysql-er-diagram-mcp \
+  --mermaid-only \
+  --output "$(pwd)/er-diagrams/schema-er.mmd"
+```
+
+Add `--include-indexes` to include index metadata in the generated entity
+blocks.
+
+## Configuration Reference
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `MYSQL_ER_HOST` | Yes | MySQL or Aurora hostname |
+| `MYSQL_ER_PORT` | No | Database port; defaults to `3306` |
+| `MYSQL_ER_DATABASE` | Yes | Schema name; must be a simple MySQL identifier |
+| `MYSQL_ER_READONLY_USERNAME` | No | Expected secret username; defaults to `readonly_user` |
+| `MYSQL_ER_SSL_CA` | Yes | Path to a trusted CA bundle; no default is applied |
+| `MYSQL_ER_SECRET_ARN` | Preferred | Secrets Manager ARN containing `username` and `password` |
+| `MYSQL_ER_SECRET_NAME` | No | Secrets Manager name used when no ARN is set |
+| `MYSQL_ER_SECRET_JSON` | No | Inline secret JSON; avoid when possible |
+| `MYSQL_ER_SECRET_FILE` | No | Path to a local JSON secret stored outside the repository |
+| `MYSQL_ER_PASSWORD` | No | Direct password fallback; avoid when possible |
+| `MYSQL_ER_AWS_REGION` | No | Secrets Manager region override |
+| `AWS_REGION` | Usually | AWS region used when no MCP-specific override is set |
+| `AWS_DEFAULT_REGION` | No | Final region fallback when the other region variables are unset |
+| `AWS_PROFILE` | Usually | AWS profile used by the local process |
+| `MYSQL_ER_LOG_LEVEL` | No | Python logging level; defaults to `WARNING` |
+| `MYSQL_ER_CLI` | CLI only | Set to `1` to run the command-line interface |
+
+Credential sources are checked in this order:
+
+1. `MYSQL_ER_SECRET_ARN` or `MYSQL_ER_SECRET_NAME`
+2. `MYSQL_ER_SECRET_JSON`
+3. `MYSQL_ER_SECRET_FILE`
+4. `MYSQL_ER_PASSWORD`
+
+The selected credential must contain the username configured by
+`MYSQL_ER_READONLY_USERNAME`. A secret file has this shape:
+
+```json
+{
+  "username": "readonly_user",
+  "password": "replace-with-a-real-password"
+}
+```
+
+Keep secret files outside the repository. The included `.gitignore` catches
+common local secret filenames, but it is not a substitute for careful secret
+handling.
+
+## Optional Aurora Test Stack
+
+Use the CloudFormation stack only when you need a disposable environment for
+testing the complete workflow.
 
 The stack creates:
 
 - an Aurora MySQL cluster and instance
-- a generated master secret in AWS Secrets Manager
-- a generated `readonly_user` secret in AWS Secrets Manager
-- a Lambda-backed custom resource that:
-  - creates or updates the read-only user
-  - grants `SELECT, SHOW VIEW` on the initial database by default
-  - creates three test tables for ER diagram validation:
-    - `teams`
-    - `applications`, with `team_id` referencing `teams.team_id`
-    - `deployments`, with `application_id` referencing `applications.application_id`
-- a CloudWatch log group for the custom resource Lambda
+- generated master and read-only credentials in Secrets Manager
+- a Lambda-backed custom resource that creates or updates `readonly_user`
+- `SELECT, SHOW VIEW` grants on the initial database by default
+- `teams`, `applications`, and `deployments` sample tables
+- private VPC endpoints used by the bootstrap Lambda
+- a CloudWatch log group with 14-day retention
 
-The MCP server then connects with the read-only secret, queries only
-`INFORMATION_SCHEMA`, and writes local ER diagrams without reading row data.
-That gives developers and Codex a current map of the schema, not just a static
-document that drifts out of date.
+### Deploy
 
-## Quick Start
-
-If you already have a dev/test database, skip to
-[Codex App MCP Configuration](#codex-app-mcp-configuration), set the required
-environment values, and point Codex at your existing database.
-
-If you need a disposable database for testing this project, deploy the Aurora
-test stack:
+The helper script uses the `mcp` AWS profile and `us-west-2` by default. It
+discovers the default VPC, public subnets, route tables, and S3 prefix list. It
+also detects the current public IPv4 address and passes its `/24` range to the
+template.
 
 ```sh
 cloudformation/deploy-aurora-mysql-test-db.sh
 ```
 
-Delete it later:
+Common overrides:
 
 ```sh
-cloudformation/deploy-aurora-mysql-test-db.sh --delete
+AWS_PROFILE_NAME=mcp \
+AWS_REGION_NAME=us-west-2 \
+STACK_NAME=sql-to-erdiag-codex \
+DATABASE_NAME=workshop \
+READONLY_USERNAME=readonly_user \
+cloudformation/deploy-aurora-mysql-test-db.sh
 ```
 
-Install `uv` if needed so `uvx` is available:
+The CloudFormation template has no default for `DesktopEgressPoolCidr`. The
+helper script supplies the detected `/24`; review the value printed before
+deployment. A `/24` can include other users behind a shared provider or
+corporate NAT, although database authentication and verified TLS are still
+required.
+
+### Use the deployed stack
+
+Export its outputs:
 
 ```sh
-# macOS / Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Windows PowerShell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-Generate an ER diagram locally:
-
-```sh
-export MYSQL_ER_MCP_DIR="$(pwd)/mcp/mysql-er-diagram"
 export AWS_PROFILE="mcp"
 export AWS_REGION="us-west-2"
 export STACK_NAME="sql-to-erdiag-codex"
@@ -135,207 +286,74 @@ export MYSQL_ER_SECRET_ARN="$(aws cloudformation describe-stacks \
 
 export MYSQL_ER_READONLY_USERNAME="readonly_user"
 export MYSQL_ER_SSL_CA="$(pwd)/mcp/mysql-er-diagram/global-bundle.pem"
-
-MYSQL_ER_CLI=1 uvx --from "$MYSQL_ER_MCP_DIR" mysql-er-diagram-mcp \
-  --output er-diagrams/schema-er.md
 ```
 
-Generate Mermaid only:
+You can now use the CLI commands above or copy these values into the Codex MCP
+configuration.
+
+### Delete
 
 ```sh
-MYSQL_ER_CLI=1 uvx --from "$MYSQL_ER_MCP_DIR" mysql-er-diagram-mcp \
-  --mermaid-only \
-  --output er-diagrams/schema-er.mmd
+cloudformation/deploy-aurora-mysql-test-db.sh --delete
 ```
 
-## CloudFormation Stack
-
-This section is optional. It exists to help you stand up a disposable dev/test
-Aurora environment for validating the MCP server and ER diagram generation
-flow.
-
-If your team already has a deployed dev/test MySQL or Aurora database, you do
-not need this stack. You can go directly to
-[Codex App MCP Configuration](#codex-app-mcp-configuration) and use your
-existing database endpoint and read-only credentials.
-
-Main template:
-
-```text
-cloudformation/aurora-mysql-test-db.yaml
-```
-
-The deploy script:
-
-- uses the `mcp` profile from `~/.aws/credentials`
-- derives default VPC public subnet inputs
-- computes your public desktop egress pool from `https://checkip.amazonaws.com`
-- publishes the PyMySQL Lambda layer
-- deploys the stack in one command
-
-Optional overrides:
+This command starts asynchronous stack deletion. To wait for completion:
 
 ```sh
-AWS_PROFILE_NAME=mcp \
-AWS_REGION_NAME=us-west-2 \
-STACK_NAME=sql-to-erdiag-codex \
-cloudformation/deploy-aurora-mysql-test-db.sh
+AWS_PROFILE=mcp AWS_REGION=us-west-2 \
+aws cloudformation wait stack-delete-complete \
+  --stack-name sql-to-erdiag-codex
 ```
 
-## Public Access Model
+The Aurora cluster has `DeletionPolicy: Snapshot`, so stack deletion retains a
+final manual snapshot. Delete that snapshot separately when it is no longer
+needed to avoid ongoing snapshot-storage charges.
 
-This dev/test stack sets the Aurora instance to `PubliclyAccessible: true`, but
-the database security group allows inbound MySQL only from:
-
-- the custom resource Lambda security group
-- the configured desktop `/24` egress pool
-
-Refresh the CIDR before deployment if your ISP egress changes:
+Find the snapshot created for the stack, then delete its exact identifier:
 
 ```sh
-export DESKTOP_EGRESS_POOL_CIDR="$(curl -fsS https://checkip.amazonaws.com | awk -F. '{print $1 "." $2 "." $3 ".0/24"}')"
+AWS_PROFILE=mcp AWS_REGION=us-west-2 \
+aws rds describe-db-cluster-snapshots \
+  --snapshot-type manual \
+  --query "DBClusterSnapshots[?contains(DBClusterSnapshotIdentifier, 'sql-to-erdiag-codex-snapshot')].[DBClusterSnapshotIdentifier,Status]" \
+  --output table
+
+export SNAPSHOT_ID="replace-with-the-snapshot-id"
+AWS_PROFILE=mcp AWS_REGION=us-west-2 \
+aws rds delete-db-cluster-snapshot \
+  --db-cluster-snapshot-identifier "${SNAPSHOT_ID}"
 ```
 
-For safety, the CloudFormation template does not include a real default for
-`DesktopEgressPoolCidr`. You must provide an explicit value at deployment time.
+The deploy helper also publishes a Lambda layer version outside the
+CloudFormation stack. Record the version from the printed `PyMySQL layer` ARN
+and delete that version after the stack is gone:
 
-## Observability
-
-The custom resource Lambda logs create, update, and delete requests, database
-connection success, grant operations, and CloudFormation response submission.
-It never logs passwords or secret values.
-
-The Lambda sends the custom resource completion signal back to CloudFormation by
-issuing an HTTP `PUT` to the stack-provided `ResponseURL`. On success it sends
-`SUCCESS`; on failure it sends `FAILED`, so the stack does not silently hang.
-
-## MCP Server
-
-The local MCP server lives here:
-
-```text
-mcp/mysql-er-diagram
+```sh
+export LAYER_VERSION="replace-with-the-layer-version"
+AWS_PROFILE=mcp AWS_REGION=us-west-2 \
+aws lambda delete-layer-version \
+  --layer-name pymysql-python312 \
+  --version-number "${LAYER_VERSION}"
 ```
 
-Safeguards:
+## TLS and CA Bundles
 
-- is intended to run with a database user that has read-only grants, typically
-  `readonly_user`
-- the actual read-only guarantee comes from the database grants on that user,
-  not from the MCP process itself
-- intended grant is `SELECT, SHOW VIEW` on the initial database only
-- queries only:
-  - `INFORMATION_SCHEMA.TABLES`
-  - `INFORMATION_SCHEMA.COLUMNS`
-  - `INFORMATION_SCHEMA.STATISTICS`
-  - `INFORMATION_SCHEMA.KEY_COLUMN_USAGE`
-  - `INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS`
-- writes local Mermaid `.mmd` or Markdown `.md` output
-- does not execute raw SQL from users
-- does not read table row data
-- does not log credentials
-- runs over local stdio only
+The server passes `MYSQL_ER_SSL_CA` to PyMySQL with certificate and hostname
+verification enabled. It refuses to connect when the setting is missing or the
+file does not exist.
 
-Available MCP tools:
+The repository includes:
 
-- `schema_summary`
-- `generate_er_markdown`
-- `generate_mermaid`
+- `global-bundle.pem`, which trusts AWS RDS certificate authorities across regions
+- `us-west-2-bundle.pem`, which is limited to that regional trust bundle
+- `us-east-2-bundle.pem`, which is limited to that regional trust bundle
 
-In practice, this means a developer can ask Codex for a current schema summary
-or a refreshed ER diagram and get an answer based on live metadata from the
-database they are actively building against.
+The global bundle is the simplest choice for most users. A regional bundle used
+with an endpoint from another region can fail certificate-chain validation
+because the required regional CA is absent.
 
-Do not point this MCP server at an admin or write-capable database secret. Use
-the scoped database user created for schema visibility, and rely on the DB
-grants to enforce read-only access.
-
-## Codex App MCP Configuration
-
-The Codex desktop app MCP entry should use `uvx`:
-
-```toml
-[mcp_servers.mysql-er-diagram]
-command = "uvx"
-args = [
-    "--from",
-    "<PROJECT_ROOT>/mcp/mysql-er-diagram",
-    "mysql-er-diagram-mcp",
-]
-
-[mcp_servers.mysql-er-diagram.env]
-AWS_PROFILE = "mcp"
-AWS_REGION = "us-west-2"
-MYSQL_ER_HOST = "your-aurora-endpoint"
-MYSQL_ER_PORT = "3306"
-MYSQL_ER_DATABASE = "workshop"
-MYSQL_ER_READONLY_USERNAME = "readonly_user"
-MYSQL_ER_SECRET_ARN = "arn:aws:secretsmanager:us-west-2:123456789012:secret:readonly-secret"
-MYSQL_ER_SSL_CA = "<PROJECT_ROOT>/mcp/mysql-er-diagram/global-bundle.pem"
-```
-
-After updating `~/.codex/config.toml`, restart Codex or reload its MCP/config
-state.
-
-Replace `<PROJECT_ROOT>` with the local filesystem path where you cloned this
-project.
-
-`MYSQL_ER_SSL_CA` is required. The MCP server fails closed if the CA bundle is
-missing so Aurora/MySQL connections always use certificate and hostname
-verification.
-
-`MYSQL_ER_SSL_CA` defaults to `global-bundle.pem`, the AWS RDS global CA
-bundle, which verifies RDS/Aurora endpoints in **any** region — so the example
-above works regardless of where your database lives. The repo also ships the
-smaller single-region bundles `us-west-2-bundle.pem` and `us-east-2-bundle.pem`
-if you prefer to pin to one region (see
-[Choosing a CA bundle](#choosing-a-ca-bundle)). A single-region bundle used
-against a different region's endpoint fails hostname verification and the
-connection is refused.
-
-If you choose to use a local secret file instead of Secrets Manager, keep it
-outside version control. The repo `.gitignore` excludes common secret-file
-patterns, but the safer default is to use `MYSQL_ER_SECRET_ARN`.
-
-## What The `*-bundle.pem` Files Are For
-
-`mcp/mysql-er-diagram/global-bundle.pem` is the AWS RDS **global** CA bundle
-(every regional root CA in one file); `us-west-2-bundle.pem` and
-`us-east-2-bundle.pem` are the smaller single-region bundles. One of them is
-used by the local MCP server when it opens a TLS connection to Aurora — the
-global bundle works anywhere, or pick the single-region bundle matching your
-database's region.
-
-Why it matters:
-
-- Aurora is configured to require encrypted client connections
-- the client needs a trusted CA bundle to verify the database server certificate
-- this prevents the client from blindly trusting any endpoint claiming to be the database
-
-In this project, the file is passed through `MYSQL_ER_SSL_CA`. The MCP server
-then gives that CA bundle to PyMySQL so certificate verification and hostname
-verification are both enabled.
-
-Without it, the connection may fail TLS verification, or you would be tempted
-to disable certificate checks, which is not what we want.
-
-### Choosing a CA bundle
-
-- **Any region (default): `global-bundle.pem`.** It contains every regional RDS
-  root CA, so it verifies an endpoint in any region with no extra download. This
-  is what the example config uses.
-- **Pin to one region: `us-west-2-bundle.pem` or `us-east-2-bundle.pem`.** These
-  are smaller and only verify endpoints in their own region — a single-region
-  bundle used against a different region's endpoint is rejected by hostname
-  verification.
-
-Whichever you choose, set `AWS_REGION` (and `AWS_REGION_NAME` when deploying the
-test stack) to your database's region so the endpoint and the
-`MYSQL_ER_SECRET_ARN` resolve there.
-
-If you want to pin to a region that has no bundled `.pem`, download that
-region's bundle, save it next to the shipped ones, and point `MYSQL_ER_SSL_CA`
-at it. Example for `eu-west-1`:
+To pin another region, download its current bundle from the
+[AWS RDS trust store](https://truststore.pki.rds.amazonaws.com/):
 
 ```sh
 curl -fsS -o mcp/mysql-er-diagram/eu-west-1-bundle.pem \
@@ -343,57 +361,79 @@ curl -fsS -o mcp/mysql-er-diagram/eu-west-1-bundle.pem \
 export MYSQL_ER_SSL_CA="$(pwd)/mcp/mysql-er-diagram/eu-west-1-bundle.pem"
 ```
 
-The bundles are refreshed from
-`https://truststore.pki.rds.amazonaws.com/` (global bundle at
-`global/global-bundle.pem`).
+## Security Model
 
-## Security Posture
+- The MCP server runs locally over stdio and does not expose a network service.
+- It executes fixed, parameterized queries against `INFORMATION_SCHEMA`.
+- It does not accept arbitrary SQL or issue table row queries.
+- It requires verified TLS and an exact configured read-only username.
+- It does not log passwords, secret JSON, or connection strings.
+- Aurora created by the test stack requires encrypted client connections.
 
-- Aurora requires encrypted client connections with
-  `require_secure_transport=ON`
-- the intended database user is meant only for local schema inspection and ER
-  diagram generation
-- the effective read-only boundary is the database `GRANT`, not a special MCP
-  enforcement layer
-- default grant scope is the initial database, not all databases
-- no hardcoded database credentials are committed in the repo
-
-The default grant is:
+The database grant is the effective authorization boundary:
 
 ```sql
 GRANT SELECT, SHOW VIEW ON `workshop`.* TO 'readonly_user'@'%';
 ```
 
-Set `ReadOnlyGrantScope=AllDatabases` only when schema inspection across all
-databases is genuinely required.
+`SELECT` is needed for MySQL to expose the relevant schema metadata. It also
+means the credential can read table rows if it is used outside this MCP server.
+Protect it like any other database credential. The safety claim here is that
+this server's implemented tools issue only fixed metadata queries, not that the
+credential is incapable of row access.
 
-## Security Review Findings - 2026-06-04
+Set the CloudFormation parameter `ReadOnlyGrantScope=AllDatabases` only when
+cross-database schema inspection is genuinely required.
 
-Local non-supply-chain scans were run with `cfn-lint`, `checkov`, `trivy`, and
-explicit local `semgrep` checks. Python package vulnerability scanners were
-intentionally excluded from this review pass.
+See the point-in-time
+[`2026-06-04 security review`](docs/security-review-2026-06-04.md) for historical
+scan results and remaining production-hardening considerations.
 
-Results:
+## Troubleshooting
 
-- `cfn-lint` passed with no CloudFormation syntax or schema findings
-- `trivy` secret scanning found no committed secrets
-- `trivy` misconfiguration scanning reported 11 CloudFormation findings:
-  1 high and 10 low
-- `checkov` reported 30 passed checks and 13 failed CloudFormation benchmark checks
-- local `semgrep` checks found no `0.0.0.0/0` exposure
+### Codex does not show the MCP tools
 
-Findings to consider:
+Confirm that `uvx` is on the PATH available to the Codex app, validate the
+`~/.codex/config.toml` entry, and restart or reload Codex.
 
-- Aurora storage encryption is enabled, but the cluster does not specify a
-  customer-managed KMS key
-- Secrets Manager secrets use AWS-managed encryption instead of a
-  customer-managed KMS key
-- the CloudWatch log group uses default encryption instead of a
-  customer-managed KMS key
-- RDS IAM database authentication is not enabled
-- RDS enhanced monitoring and Performance Insights are not enabled
-- security group rules are missing descriptions
-- the Lambda function does not enable X-Ray tracing, reserved concurrency, or a DLQ
+### Credentials are missing or the username is rejected
 
-Overall, the remaining findings are mostly production-hardening items around
-customer-managed KMS keys, monitoring, tracing, and benchmark controls.
+Confirm that one supported credential source is configured and that its
+`username` exactly matches `MYSQL_ER_READONLY_USERNAME`.
+
+### Secrets Manager cannot find the secret
+
+Check `AWS_PROFILE`, the region, the secret ARN or name, and the caller's
+`secretsmanager:GetSecretValue` permission:
+
+```sh
+AWS_PROFILE=your-dev-profile aws sts get-caller-identity
+```
+
+### TLS verification fails
+
+Confirm that `MYSQL_ER_SSL_CA` is an absolute path to a current AWS RDS CA
+bundle and that the bundle covers the database's region. Do not disable
+certificate or hostname verification.
+
+### The database connection times out
+
+Check the endpoint, port, database status, routing, VPN, and security-group
+rules. For the test stack, redeploy if the desktop public `/24` has changed.
+
+### The deploy script cannot find network resources
+
+The helper expects a default VPC with public subnets in at least two
+Availability Zones. Deploy the template manually with explicit VPC parameters
+when that layout is unavailable.
+
+### The generated file appears in an unexpected directory
+
+Relative output paths are resolved from the MCP process's current working
+directory. Pass an absolute `output_path` when calling a generation tool.
+
+## Related Resources
+
+Explore additional examples and open-source projects combining OpenAI
+technologies with AWS services at
+[OpenAI on AWS](https://github.com/openai-on-aws).
