@@ -1,6 +1,6 @@
 # SQL to ER Diagram — Claude Code Subagent
 
-A Claude Code subagent that generates Mermaid ER diagrams from SQL schema files. Based on the [aws-samples repo](https://github.com/aws-samples/sample-to-create-mermaid-entity-diagrams-from-sql-using-agentic-ai-on-agentcore) which uses AWS Bedrock AgentCore — adapted here to run locally as a prompt-driven Claude Code subagent.
+A Claude Code subagent that generates Mermaid ER diagrams from SQL schema files. Based on the [aws-samples repo](https://github.com/aws-samples/sample-to-create-mermaid-entity-diagrams-from-sql-using-agentic-ai-on-agentcore) which uses Amazon Bedrock AgentCore — adapted here to run locally as a prompt-driven Claude Code subagent.
 
 ## Setup
 
