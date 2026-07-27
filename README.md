@@ -1,6 +1,6 @@
 # SQL to ER Diagram Generator
 
-Generates Mermaid ER diagrams from SQL schema files using AWS Bedrock AgentCore.
+Generates Mermaid ER diagrams from SQL schema files using Amazon Bedrock AgentCore.
 
 ## Architecture
 
