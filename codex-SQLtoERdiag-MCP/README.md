@@ -40,7 +40,7 @@ flowchart LR
     Aurora --> Schema
 ```
 
-The optional stack creates Aurora MySQL, generated credentials, a read-only
+The optional stack creates Amazon Aurora MySQL compatible, generated credentials, a read-only
 user, and three related sample tables. You do not need the stack when you
 already have an authorized dev/test database.
 
@@ -53,7 +53,7 @@ For the local MCP server:
 - [`uv`](https://docs.astral.sh/uv/) so `uvx` is available
 - network access to the MySQL or Aurora endpoint
 - an authorized read-only database credential
-- an AWS RDS CA bundle for TLS verification
+- an Amazon RDS CA bundle for TLS verification
 - AWS credentials with `secretsmanager:GetSecretValue` when using Secrets Manager
 
 For the optional Aurora test stack:
@@ -113,7 +113,7 @@ MYSQL_ER_SSL_CA = "<PROJECT_ROOT>/mcp/mysql-er-diagram/global-bundle.pem"
 ```
 
 `MYSQL_ER_SSL_CA` is required and has no implicit default. The example selects
-the bundled AWS RDS global CA file explicitly.
+the bundled Amazon RDS global CA file explicitly.
 
 Restart Codex or reload its MCP configuration after editing the file.
 
