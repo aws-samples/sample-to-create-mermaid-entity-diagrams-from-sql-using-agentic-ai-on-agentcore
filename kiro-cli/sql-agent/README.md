@@ -1,6 +1,6 @@
 # SQL to ER Diagram — Kiro CLI Agent
 
-A Kiro CLI agent that generates Mermaid ER diagrams from SQL schema files. Based on the [aws-samples repo](https://github.com/aws-samples/sample-to-create-mermaid-entity-diagrams-from-sql-using-agentic-ai-on-agentcore) which uses AWS Bedrock AgentCore — adapted here to run locally as a prompt-driven Kiro CLI agent.
+A Kiro CLI agent that generates Mermaid ER diagrams from SQL schema files. Based on the [aws-samples repo](https://github.com/aws-samples/sample-to-create-mermaid-entity-diagrams-from-sql-using-agentic-ai-on-agentcore) which uses Amazon Bedrock AgentCore — adapted here to run locally as a prompt-driven Kiro CLI agent.
 
 ## Prerequisites
 
