@@ -42,7 +42,7 @@ flowchart LR
 
 The optional stack creates Amazon Aurora MySQL compatible database, generates credentials, a read-only
 user, and three related sample tables. You do not need the stack when you
-already have an authorized dev/test database.
+already have an existing dev/test database.
 
 ## Prerequisites
 
