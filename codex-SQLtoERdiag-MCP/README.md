@@ -70,8 +70,7 @@ detected desktop `/24` egress range.
 
 ## Quick Start With an Existing Database
 
-This is the recommended path when your team already has a dev/test MySQL or
-Aurora database.
+This is the recommended path when your team already has a dev/test Aurora MySQL compatible database.
 
 ### 1. Install `uv`
 
