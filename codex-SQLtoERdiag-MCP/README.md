@@ -40,7 +40,7 @@ flowchart LR
     Aurora --> Schema
 ```
 
-The optional stack creates Amazon Aurora MySQL compatible database, generated credentials, a read-only
+The optional stack creates Amazon Aurora MySQL compatible database, generates credentials, a read-only
 user, and three related sample tables. You do not need the stack when you
 already have an authorized dev/test database.
 
