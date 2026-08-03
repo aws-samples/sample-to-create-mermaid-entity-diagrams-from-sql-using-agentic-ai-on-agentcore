@@ -10,8 +10,8 @@ from pathlib import Path
 from botocore.exceptions import ClientError
 
 # Configuration
-REGION = "us-west-2"
-PROJECT_NAME = "erdiagfromsql"
+REGION = os.environ.get('AWS_DEFAULT_REGION', 'us-west-2')
+PROJECT_NAME = os.environ.get('PROJECT_NAME', 'erdiagfromsql')
 PRIVATE_ECR_REPO = f"{PROJECT_NAME}-analysis-agent"
 IMAGE_TAG = "latest"
 
@@ -123,12 +123,12 @@ def create_private_ecr_and_push():
             
             # Write Dockerfile
             dockerfile_path = os.path.join(temp_dir, 'Dockerfile')
-            with open(dockerfile_path, 'w') as f:
+            with open(dockerfile_path, 'w', encoding='utf-8') as f:
                 f.write(create_dockerfile())
             
             # Write requirements.txt
             requirements_path = os.path.join(temp_dir, 'requirements.txt')
-            with open(requirements_path, 'w') as f:
+            with open(requirements_path, 'w', encoding='utf-8') as f:
                 f.write(create_requirements_txt())
             
             # Copy analysis agent
@@ -138,7 +138,7 @@ def create_private_ecr_and_push():
             if not os.path.exists(agent_source):
                 raise FileNotFoundError(f"Analysis agent file not found: {agent_source}")
             
-            with open(agent_source, 'r') as src, open(agent_dest, 'w') as dst:
+            with open(agent_source, 'r', encoding='utf-8') as src, open(agent_dest, 'w', encoding='utf-8') as dst:
                 dst.write(src.read())
             
             # Get ECR login token
@@ -155,16 +155,11 @@ def create_private_ecr_and_push():
                 'docker', 'login', '--username', username, '--password-stdin', endpoint
             ], input=password.encode(), check=True)
             
-            # Build Docker image for arm64
-            print(f"🔨 Building Docker image: {image_uri}")
+            # Build and push Docker image for arm64 directly to ECR
+            print(f"🔨 Building and pushing Docker image: {image_uri}")
             subprocess.run([
-                'docker', 'build', '--platform', 'linux/arm64', '-t', image_uri, temp_dir
-            ], check=True)
-            
-            # Push to private ECR
-            print(f"📤 Pushing image to private ECR...")
-            subprocess.run([
-                'docker', 'push', image_uri
+                'docker', 'buildx', 'build', '--platform', 'linux/arm64',
+                '-t', image_uri, '--push', temp_dir
             ], check=True)
             
             print(f"✅ Successfully pushed Docker image: {image_uri}")
@@ -225,7 +220,7 @@ def get_cognito_bearer_token():
             }
             
             print(f"🔐 Requesting token from: {token_url}")
-            response = requests.post(token_url, headers=headers, data=data)
+            response = requests.post(token_url, headers=headers, data=data, timeout=30)
             
             if response.status_code == 200:
                 token_data = response.json()
@@ -253,13 +248,21 @@ def create_enhanced_agentcore_runtime_role(s3_bucket: str):
         "Statement": [
             {
                 "Effect": "Allow",
-                "Principal": {
-                    "Service": [
-                        "lambda.amazonaws.com",
-                        "bedrock-agentcore.amazonaws.com"
-                    ]
-                },
+                "Principal": {"Service": "lambda.amazonaws.com"},
                 "Action": "sts:AssumeRole"
+            },
+            {
+                "Effect": "Allow",
+                "Principal": {"Service": "bedrock-agentcore.amazonaws.com"},
+                "Action": "sts:AssumeRole",
+                "Condition": {
+                    "StringEquals": {
+                        "aws:SourceAccount": boto3.client('sts').get_caller_identity()['Account']
+                    },
+                    "ArnLike": {
+                        "aws:SourceArn": f"arn:aws:bedrock-agentcore:{REGION}:{boto3.client('sts').get_caller_identity()['Account']}:*"
+                    }
+                }
             }
         ]
     }
@@ -381,7 +384,10 @@ def create_enhanced_agentcore_runtime_role(s3_bucket: str):
                     "secretsmanager:GetSecretValue",
                     "secretsmanager:DescribeSecret"
                 ],
-                "Resource": "*"
+                "Resource": [
+                    f"arn:aws:secretsmanager:{REGION}:{account_id}:secret:/app/{PROJECT_NAME}/*",
+                    f"arn:aws:secretsmanager:{REGION}:{account_id}:secret:bedrock-agentcore-identity!*"
+                ]
             },
             {
                 "Sid": "CognitoAccess",
@@ -537,8 +543,9 @@ def deploy_agentcore_runtime(image_uri: str, s3_bucket: str):
             'environmentVariables': {
                 'AWS_DEFAULT_REGION': REGION,
                 'PROJECT_NAME': PROJECT_NAME,
-                'CODE_ANALYSIS_MODEL': 'us.anthropic.claude-sonnet-4-6',
-                'S3_BUCKET_NAME': s3_bucket
+                'CODE_ANALYSIS_MODEL': 'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
+                'S3_BUCKET_NAME': s3_bucket,
+                'UNIFIED_TRACES_DESTINATION_ENABLED': 'true',
             },
             'authorizerConfiguration': {
                 "customJWTAuthorizer": {
@@ -588,6 +595,92 @@ def deploy_agentcore_runtime(image_uri: str, s3_bucket: str):
         import urllib.parse
         escaped_runtime_arn = urllib.parse.quote(runtime_arn, safe='')
         runtime_url = f"https://bedrock-agentcore.{REGION}.amazonaws.com/runtimes/{escaped_runtime_arn}/invocations?qualifier=DEFAULT"
+        
+        # Create CloudWatch log groups for the runtime (required for OpenTelemetry trace export)
+        logs_client = boto3.client('logs', region_name=REGION)
+        
+        # Enable Transaction Search: resource policy allowing X-Ray to write spans
+        account_id = boto3.client('sts').get_caller_identity()['Account']
+        xray_policy = {
+            "Version": "2012-10-17",
+            "Statement": [{
+                "Sid": "TransactionSearchXRayAccess",
+                "Effect": "Allow",
+                "Principal": {"Service": "xray.amazonaws.com"},
+                "Action": "logs:PutLogEvents",
+                "Resource": [
+                    f"arn:aws:logs:{REGION}:{account_id}:log-group:aws/spans:*",
+                    f"arn:aws:logs:{REGION}:{account_id}:log-group:/aws/application-signals/data:*",
+                    f"arn:aws:logs:{REGION}:{account_id}:log-group:/aws/bedrock-agentcore/runtimes/*"
+                ],
+                "Condition": {
+                    "ArnLike": {"aws:SourceArn": f"arn:aws:xray:{REGION}:{account_id}:*"},
+                    "StringEquals": {"aws:SourceAccount": account_id}
+                }
+            }]
+        }
+        try:
+            logs_client.put_resource_policy(
+                policyName=f'{PROJECT_NAME}-xray-spans-policy',
+                policyDocument=json.dumps(xray_policy)
+            )
+            print(f"✅ Created X-Ray resource policy for Transaction Search")
+        except Exception as e:
+            print(f"⚠️ X-Ray resource policy: {e}")
+        
+        log_groups = [
+            f"/aws/bedrock-agentcore/runtimes/{runtime_id}",
+            f"/aws/vendedlogs/bedrock-agentcore/runtimes/{runtime_id}",
+        ]
+        for log_group_name in log_groups:
+            try:
+                logs_client.create_log_group(logGroupName=log_group_name)
+                print(f"✅ Created CloudWatch log group: {log_group_name}")
+            except logs_client.exceptions.ResourceAlreadyExistsException:
+                print(f"✅ CloudWatch log group already exists: {log_group_name}")
+            except Exception as e:
+                print(f"⚠️ Could not create log group: {e}")
+        
+        # X-Ray resource policy for span delivery to runtime log group
+        log_group_arn = f"arn:aws:logs:{REGION}:{account_id}:log-group:/aws/bedrock-agentcore/runtimes/{runtime_id}:*"
+        span_policy = {
+            "Version": "2012-10-17",
+            "Statement": [{
+                "Sid": "AllowXRayToWriteSpans",
+                "Effect": "Allow",
+                "Principal": {"Service": "xray.amazonaws.com"},
+                "Action": ["logs:PutLogEvents", "logs:CreateLogStream"],
+                "Resource": log_group_arn
+            }]
+        }
+        try:
+            logs_client.put_resource_policy(
+                policyName=f'{PROJECT_NAME}-xray-runtime-spans',
+                policyDocument=json.dumps(span_policy)
+            )
+            print(f"✅ Created X-Ray resource policy for span delivery")
+        except Exception as e:
+            print(f"⚠️ Span delivery policy: {e}")
+        
+        # Add observability permissions to IAM role
+        obs_policy = {
+            "Version": "2012-10-17",
+            "Statement": [{
+                "Sid": "ObservabilityLogs",
+                "Effect": "Allow",
+                "Action": ["logs:PutResourcePolicy", "logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
+                "Resource": f"arn:aws:logs:{REGION}:{account_id}:log-group:/aws/bedrock-agentcore/runtimes/{runtime_id}*"
+            }]
+        }
+        try:
+            iam_client.put_role_policy(
+                RoleName=f'{PROJECT_NAME}-analysis-agentcore-runtime-role',
+                PolicyName='ObservabilityLogsPolicy',
+                PolicyDocument=json.dumps(obs_policy)
+            )
+            print(f"✅ Added observability permissions to runtime role")
+        except Exception as e:
+            print(f"⚠️ Observability permissions: {e}")
         
         print(f"📋 Runtime URL: {runtime_url}")
         
